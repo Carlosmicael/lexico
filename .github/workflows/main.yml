@@ -1,0 +1,33 @@
+name: 📦 Build y Deploy a GitHub Pages
+
+on:
+  push:
+    branches:
+      - main    # al hacer push en main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repo
+        uses: actions/checkout@v3
+
+      - name: 🧰 Instalar Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: 📦 Instalar dependencias
+        run: npm ci
+
+      - name: 🔨 Construir con Vite
+        run: npm run build
+
+      - name: 🚀 Deploy a gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          # opcional: si quieres usar otra rama, p.ej. gh-pages
+          # publish_branch: gh-pages
