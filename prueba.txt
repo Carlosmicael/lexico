@@ -1,12 +1,10 @@
-var nombre String
-= "Juan"
-val pi Doub
-= 3.1416
+var nombre String = "Juan"
+val pi Doub = 3.1416
 var activo bol = true
 var letra char
 = 'a'
 val numeros Arr[Int] = Arr(1, 2, 3, 4, 5)
-obj class Persona(nombre: String, edad: Int, activo: Boolean)
+obj class Persona(nombre  String, edad  Int, activo  Boolean)
 // 3. Acceso y operaciones
 numeros 0 = numeros 1 + 10
 val moduloResultado Int = 10 % 3
