@@ -1,4 +1,8 @@
 const dropZone = document.getElementById("dropZone") as HTMLElement;
+const analizarBtn = document.getElementById("analizarBtn");
+
+
+let lineas:string[] = [];
 
 dropZone.addEventListener("dragover", (event) => {
   event.preventDefault(); 
@@ -13,18 +17,22 @@ dropZone.addEventListener("drop", async (event) => {
   event.preventDefault();
   dropZone.classList.remove("dragover");
 
+
   const file = event.dataTransfer?.files[0];
   if (!file) return;
 
   const text = await file.text();
-  const lineas = text.split('\n');
-  analizadorLexico(lineas);
-
-
+  lineas = text.split('\n');
+  console.log(lineas)
 });
 
-
-
+analizarBtn?.addEventListener("click", () => {
+  if(!lineas.length){
+    alert("Primero arrastra un archivo.");
+    return;
+  }
+  analizadorLexico(lineas);
+});
 
 
 function analizadorLexico(lineas: string[]): void {
@@ -32,47 +40,20 @@ function analizadorLexico(lineas: string[]): void {
   const palabrasReservadas = new Set(['var', 'val', 'defu', 'if', 'else', 'for', 'match', 'case', '_', 'obj', 'class']);
   const tiposDatos = new Set(['String', 'Doub', 'bol', 'char', 'Int', 'Boolean', 'Arr']);
   const simbolos = new Set(['=', '+', '-', '*', '/', '%', '(', ')', '{', '}', '[', ']', ',', ';', '->', '<-', '>=', '<=', '==', '!=']);
-  
-  // Crear tabla HTML
-  const tablaHTML = `
-  <div class="container mt-5">
-    <div class="row">
-      <div class="col-md-10 offset-md-1">
-        <h2 class="text-center mb-4">Resultados del Analizador Léxico</h2>
-        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
-          <table class="table table-bordered table-striped table-hover">
-            <thead class="table-dark" style="position: sticky; top: 0; z-index: 1;">
-              <tr>
-                <th>Línea</th>
-                <th>Token</th>
-                <th>Tipo</th>
-                <th>Status</th>
-                <th>Resultado</th>
-              </tr>
-            </thead>
-            <tbody id="resultadosBody">
-              <!-- Aquí se insertarán los resultados -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-  `;
+  const operadoresLogicos = new Set(['&&', '||']);
+  const metodosEspeciales = new Set(['toDoub', 'toInt', 'length']);
 
-  // Insertar la tabla en el DOM
-  document.body.innerHTML = tablaHTML;
   const tbody = document.getElementById('resultadosBody')!;
+  tbody.classList.add("table-row-animate");
+  tbody.innerHTML = '';
 
   let contadorLinea = 0;
   let contadorToken = 0;
 
   for (const linea of lineas) {
     contadorLinea++;
-    //const lineaOriginal = linea;
     
     if (!linea.trim() || linea.trim().startsWith('//')) {
-      // Insertar fila para línea vacía o comentario
       tbody.innerHTML += `
       <tr>
         <td>${contadorLinea}</td>
@@ -82,10 +63,8 @@ function analizadorLexico(lineas: string[]): void {
       continue;
     }
 
-    // Procesar tokens de la línea
     const tokens = linea.split(/(\s+|"[^"]*"|'[^']'|[(),;{}[\]])/).filter(t => t && t.trim());
     let lineaValida = true;
-    //const resultados: TokenResult[] = [];
 
     for (const token of tokens) {
       contadorToken++;
@@ -93,33 +72,46 @@ function analizadorLexico(lineas: string[]): void {
       let valido = false;
 
       if (palabrasReservadas.has(token)) {
-        tipo = 'Palabra reservada';
+        tipo = 'palabra reservada';
         valido = true;
       } else if (tiposDatos.has(token)) {
-        tipo = 'Tipo válido';
+        tipo = 'tipo válido';
         valido = true;
-      } else if (simbolos.has(token)) {
-        tipo = 'Símbolo válido';
+      } else if (simbolos.has(token) || operadoresLogicos.has(token)) {
+        tipo = 'símbolo válido';
         valido = true;
       } else if (/^"[^"]*"$/.test(token)) {
-        tipo = 'Cadena válida';
+        tipo = 'cadena válida';
         valido = true;
       } else if (/^'[^']'$/.test(token)) {
-        tipo = 'Carácter válido';
+        tipo = 'carácter válido';
         valido = true;
       } else if (/^[0-9]+(\.[0-9]+)?$/.test(token)) {
-        tipo = 'Número válido';
+        tipo = 'número válido';
         valido = true;
       } else if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(token)) {
-        tipo = 'Identificador válido';
+        tipo = 'identificador válido';
         valido = true;
+      } else if (/^\.[a-zA-Z_][a-zA-Z0-9_]*$/.test(token)) {
+        // Métodos como .toDoub
+        tipo = 'método especial';
+        valido = metodosEspeciales.has(token.substring(1));
+      } else if (/^[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*$/.test(token)) {
+        // Accesos como numeros.length
+        const [_, method] = token.split('.');
+        tipo = 'acceso a método';
+        valido = metodosEspeciales.has(method);
+      } else if (token.includes(':')) {
+        // Para parámetros como nombre: String
+        const [param, type] = token.split(':');
+        tipo = 'parámetro tipado';
+        valido = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(param) && tiposDatos.has(type.trim());
       } else {
-        tipo = 'Token no reconocido';
+        tipo = 'token no reconocido';
         valido = false;
         lineaValida = false;
       }
 
-      // Añadir fila por cada token
       tbody.innerHTML += `
       <tr>
         <td>${contadorLinea}</td>
@@ -131,7 +123,6 @@ function analizadorLexico(lineas: string[]): void {
       `;
     }
 
-    // Añadir fila de resumen para la línea
     tbody.innerHTML += `
     <tr class="${lineaValida ? 'table-success' : 'table-danger'}">
       <td>${contadorLinea}</td>
@@ -141,8 +132,4 @@ function analizadorLexico(lineas: string[]): void {
     `;
   }
 }
-
-
-
-
 
